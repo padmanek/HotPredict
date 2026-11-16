@@ -1,3 +1,4 @@
 * text=auto
 *.lua text eol=lf
+*.sh text eol=lf
 *.toc text eol=crlf
