@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: HoT Predict
 ## Notes: Extends Blizzard health bars with the healing your own HoTs still have to do, like the incoming-heal bar of a cast.
-## Version: 1.0.0
+## Version: 1.0.1
 ## Author: padmanek
 ## X-License: MIT
 ## X-Website: https://github.com/padmanek/HotPredict

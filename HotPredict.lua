@@ -172,9 +172,7 @@ local function MakeOverlay(hb)
 
     local seg = hb:CreateTexture(nil, "ARTWORK", nil, 7)
     seg:SetTexture("Interface\\Buttons\\WHITE8X8")
-    seg:SetPoint("TOPLEFT", geo, "TOPLEFT", 0, 0)
-    seg:SetPoint("BOTTOMRIGHT", geo:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
-    seg:Hide()
+    seg:Hide() -- placed by Anchor
 
     -- No copy of the bar's own shape mask: that mask stops at the end of the bar and would hide overheal.
     -- The height comes from the health bar instead (see Anchor), so the segment still matches the bar.
@@ -194,17 +192,23 @@ local function MakeOverlay(hb)
 end
 
 -- geo starts where the fill ends and is as wide and as tall as the health bar itself (the fill texture can be drawn
--- taller than the bar). /hotp inset trims that many pixels off the top and bottom.
+-- taller than the bar). The segment spans geo's height minus /hotp inset pixels top and bottom, done with anchor
+-- offsets rather than arithmetic on the size.
+-- WoW Forever can hide a health bar's size from addons (GetWidth returns a secret value). Lua may not do math on
+-- that, but widgets accept it: it is handed to SetWidth/SetHeight unread.
 local function Anchor(o, hb)
     -- Only the player/target/focus/party frames have border art over the bar; raid/party grid frames keep full height
     local inset = o.decorated and (db and db.inset) or 0
-    -- A size the client hides from addons can't be used in math: keep the last size then
-    local w, h = plain(hb:GetWidth()), plain(hb:GetHeight())
-    if not (w and h) then return end
     o.geo:ClearAllPoints()
     o.geo:SetPoint("LEFT", o.fill, "RIGHT", 0, 0)
-    o.geo:SetWidth(math.max(w, 1))
-    o.geo:SetHeight(math.max(h - 2 * inset, 1))
+    local w, h = hb:GetWidth(), hb:GetHeight()
+    local pw, ph = plain(w), plain(h)
+    local okW = pcall(o.geo.SetWidth, o.geo, pw and math.max(pw, 1) or w)
+    local okH = pcall(o.geo.SetHeight, o.geo, ph and math.max(ph, 1) or h)
+    o.sizeError = not (okW and okH) and "the client refused the health bar's hidden size" or nil
+    o.seg:ClearAllPoints()
+    o.seg:SetPoint("TOPLEFT", o.geo, "TOPLEFT", 0, -inset)
+    o.seg:SetPoint("BOTTOMRIGHT", o.geo:GetStatusBarTexture(), "BOTTOMRIGHT", 0, inset)
 end
 
 local function Register(hb, unitFunc, decorated)
@@ -495,6 +499,7 @@ DebugReport = function()
                 s(hb.GetDebugName and hb:GetDebugName() or hb:GetName()), s(hb:GetFrameLevel()), s(fl), s(fsub), s(hb:GetWidth()), s(hb:GetHeight())))
             Print(("    segment: shown %s, width %s, helper shown %s width %s, remaining %s"):format(
                 s(o.seg:IsShown()), s(o.seg:GetWidth()), s(o.geo:IsShown()), s(o.geo:GetWidth()), s(Remaining(UnitKey("player")))))
+            if o.sizeError then Print("    size: " .. o.sizeError) end
         end
     end
     if not found then Print("  no health bar found for your player frame") end
